@@ -8,8 +8,6 @@ from skimage.transform import resize
 from sklearn.metrics import classification_report
 from sklearn.cross_validation import train_test_split
 from sklearn.decomposition import RandomizedPCA
-from sklearn.feature_extraction.image import extract_patches_2d
-from sklearn.grid_search import GridSearchCV
 from sklearn.svm import SVC
 
 # Split input line from the training text file
@@ -36,41 +34,52 @@ def load_training_set( file ):
 
     return images, classify
 
-def hog_feature_extraction( images, classify ):
+def hog_svm_classifier( images, classify ):
     return
 
-def pca_feature_extraction( images, classify ):
-    X_train, X_test, y_train, y_test = train_test_split(
-        images, classify, test_size=0.25, random_state=42)
-    print( "Train and test set" )
+def pca_svm_classifier( images, classify ):
+    sum_score = 0
+    for _ in range(5):
+        X_train, X_test, y_train, y_test = train_test_split(
+            images, classify, test_size=0.25, random_state=42)
 
-    pca = RandomizedPCA(n_components=len(X_train), whiten=True).fit(X_train)
-    print( "PCA fitted" )
-    eigen_images = pca.components_.reshape((len(X_train), 200, 200))
-    print( "Eigen images created" )
-    X_train_pca = pca.transform(X_train)
-    print( "Train pca created" )
-    X_test_pca = pca.transform(X_test)
-    print( "Test pca created" )
-    print(X_test_pca)
+        pca = RandomizedPCA(n_components=len(X_train), whiten=True).fit(X_train)
+        eigen_images = pca.components_.reshape((len(X_train), 200, 200))
+        X_train_pca = pca.transform(X_train)
+        X_test_pca = pca.transform(X_test)
 
-    clf = SVC(kernel='linear', class_weight='balanced')
-    print( "SVC created" )
-    clf = clf.fit(X_train_pca, y_train)
-    print( "SVC fitted" )
+        clf = SVC(kernel='linear', class_weight='balanced')
+        clf = clf.fit(X_train_pca, y_train)
 
-    y_pred = clf.predict(X_test_pca)
-    print(y_pred)
-    print(classification_report(y_test, y_pred, target_names=['0','1']))
+        sum_score += clf.score(X_test_pca, y_test)
 
+        y_pred = clf.predict(X_test_pca)
 
-def classified_images( classified_set, output_loaction ):
+    print( sum_score/5 )
+
+def k_near_svm_classifier( images, classify ):
     return
 
+def svm_classifier( images, classify ):
+    sum_score = 0
+    for _ in range(5):
+        X_train, X_test, y_train, y_test = train_test_split(
+            images, classify, test_size=0.25, random_state=42)
+
+        clf = SVC(kernel='linear', class_weight='balanced')
+        clf = clf.fit(X_train, y_train)
+        sum_score += clf.score(X_test, y_test)
+
+        y_pred = clf.predict(X_test)
+        print( y_test )
+        print(classification_report(y_test, y_pred, target_names=['0', '1']))
+
+    print( sum_score/5 )
 
 if len(sys.argv) != 5:
     print( 'There was ' + str(len(sys.argv)-1) + ' arguements' )
     print( 'Four arguements must be entered, 2 input text files, 1 output text file and an algorithm identifier' )
+
 else:
     trainer_set = open(sys.argv[1], 'r')
     images, classify = load_training_set( trainer_set )
@@ -79,10 +88,10 @@ else:
         print( "Algorithm identifier must be between 1-4" )
     else:
         if int(sys.argv[4]) == 1:
-            print(1)
+            hog_svm_classifier(images, classify)
         elif int(sys.argv[4]) == 2:
-            pca_feature_extraction(images, classify)
+            pca_svm_classifier(images, classify)
         elif int(sys.argv[4]) == 3:
-            print(3)
+            k_near_svm_classifier(images, classify)
         elif int(sys.argv[4]) == 4:
-            print(4)
+            svm_classifier(images, classify)
