@@ -56,35 +56,55 @@ def load_unknown_set( file ):
 def hog_svm_classifier( training_images, classify, unknown_images ):
     print( "Histogram of Oriented Gradients Classifier" )
 
-    hog_set = []
-
-    for img in training_images:
-        fd = hog(img, orientations=8, pixels_per_cell=(16, 16),
-                    cells_per_block=(1, 1))
-        hog_set.append(fd)
-
-    '''
-    Data splitting with a known dataset, held-out
-    X_train, X_test, y_train, y_test = train_test_split(
-        flat_training_images, classify, test_size=0.25)
-    '''
-
     clf = SVC(kernel='linear', class_weight='balanced')
-    clf = clf.fit(X_train, y_train)
+    classified = [0]*len(unknown_images)
 
-    '''
-    Testing how well the data was fit
-    y_pred = clf.predict(X_test)
-    y_pred = clf.predict(X_test)
-    y_f1 = f1_score(y_test, y_pred, average=None)
-    y_precision = precision_score(y_test, y_pred, average=None)
-    y_recall = recall_score(y_test, y_pred, average=None)
-    y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
-    '''
+    start_time = time.time()
+
+    for i in range(15):
+        training_hog_set = []
+        for img in training_images:
+            fd = hog(img, orientations=8, pixels_per_cell=(16+i, 16+i),
+                        cells_per_block=(1+(i//3), 1+(i//3)))
+            training_hog_set.append(fd)
+
+        unknown_hog_set = []
+        for img in unknown_images:
+            fd = hog(img, orientations=8, pixels_per_cell=(16+i, 16+i),
+                        cells_per_block=(1+(i//3), 1+(i//3)))
+            unknown_hog_set.append(fd)
+
+        '''
+        Data splitting with a known dataset, held-out
+        X_train, X_test, y_train, y_test = train_test_split(
+            flat_training_images, classify, test_size=0.25)
+        '''
+
+        clf = clf.fit(training_hog_set, classify)
+
+        class_pred = clf.predict(unknown_hog_set)
+
+        for j in range(len(classified)):
+            classified[j] += class_pred[j]
+
+        '''
+        Testing how well the data was fit
+        y_pred = clf.predict(X_test)
+        y_pred = clf.predict(X_test)
+        y_f1 = f1_score(y_test, y_pred, average=None)
+        y_precision = precision_score(y_test, y_pred, average=None)
+        y_recall = recall_score(y_test, y_pred, average=None)
+        y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+        '''
+
+    finish_time = time.time()
+
+    for i in range(len(classified)):
+        classified[i] = float("{0:.2f}".format(classified[i]/15))
 
     print( "Histogram of Oriented Gradients Classifier Fitted" )
 
-    return y_scores
+    return classified
 
 def pca_svm_classifier( training_images, classify, unknown_images ):
     print( "Principal Component Analysis Classifier" )
@@ -93,32 +113,53 @@ def pca_svm_classifier( training_images, classify, unknown_images ):
     for img in training_images:
         flat_training_images.append(img.flatten())
 
-    '''
-    Data splitting with a known dataset, held-out
-    X_train, X_test, y_train, y_test = train_test_split(
-        flat_training_images, classify, test_size=0.25)
-    '''
+    flat_unknown_images = []
+    for img in unknown_images:
+        flat_unknown_images.append(img.flatten())
 
-    pca = RandomizedPCA(n_components=len(X_train), whiten=True).fit(X_train)
-    eigen_images = pca.components_.reshape((len(X_train), 250, 250))
-    X_train_pca = pca.transform(X_train)
-    X_test_pca = pca.transform(X_test)
+    classified = [0]*len(unknown_images)
 
-    clf = SVC(kernel='linear', class_weight='balanced')
-    clf = clf.fit(X_train_pca, y_train)
+    start_time = time.time()
 
-    '''
-    Testing how well the data was fit
-    y_pred = clf.predict(X_test_pca)
-    y_f1 = f1_score(y_test, y_pred, average=None)
-    y_precision = precision_score(y_test, y_pred, average=None)
-    y_recall = recall_score(y_test, y_pred, average=None)
-    y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
-    '''
+    for i in range(5):
+
+        '''
+        Data splitting with a known dataset, held-out
+        X_train, X_test, y_train, y_test = train_test_split(
+            flat_training_images, classify, test_size=0.25)
+        '''
+
+        pca = RandomizedPCA(n_components=len(flat_training_images)//(i+1), whiten=True).fit(flat_training_images)
+        eigen_images = pca.components_.reshape((len(X_train)//(i+1), 250, 250))
+        X_train_pca = pca.transform(X_train)
+        X_test_pca = pca.transform(X_test)
+
+        clf = SVC(kernel='linear', class_weight='balanced')
+        clf = clf.fit(X_train_pca, y_train)
+
+        class_pred = clf.predict(flat_unknown_images)
+
+        for j in range(len(classified)):
+            classified[j] += class_pred[j]
+
+        '''
+        Testing how well the data was fit
+        y_pred = clf.predict(X_test_pca)
+        y_f1 = f1_score(y_test, y_pred, average=None)
+        y_precision = precision_score(y_test, y_pred, average=None)
+        y_recall = recall_score(y_test, y_pred, average=None)
+        y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+        '''
+
+    finish_time = time.time()
+    print( "It took %f seconds" % (finish_time-start_time))
+
+    for i in range(len(classified)):
+        classified[i] = float("{0:.2f}".format(classified[i]/5))
 
     print( "Principal Component Analysis Classifier Fitted" )
 
-    return y_scores
+    return classified
 
 def k_nearest_classifier( training_images, classify, unknown_images ):
     print( "K-Nearest Neighbor Classifier" )
@@ -127,26 +168,42 @@ def k_nearest_classifier( training_images, classify, unknown_images ):
     for img in training_images:
         flat_training_images.append(img.flatten())
 
-    '''
-    Data splitting with a known dataset, held-out
-    X_train, X_test, y_train, y_test = train_test_split(
-        flat_training_images, classify, test_size=0.25)
-    '''
+    flat_unknown_images = []
+    for img in unknown_images:
+        flat_unknown_images.append(img.flatten())
 
-    clf = KNeighborsClassifier(10).fit(X_train, y_train)
+    classified = [0]*len(unknown_images)
 
-    '''
-    Testing how well the data was fit
-    y_pred = clf.predict(X_test)
-    y_f1 = f1_score(y_test, y_pred, average=None)
-    y_precision = precision_score(y_test, y_pred, average=None)
-    y_recall = recall_score(y_test, y_pred, average=None)
-    y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
-    '''
+    for i in range(50):
+
+        '''
+        Data splitting with a known dataset, held-out
+        X_train, X_test, y_train, y_test = train_test_split(
+            flat_training_images, classify, test_size=0.25)
+        '''
+
+        clf = KNeighborsClassifier(5*(i+1)).fit(flat_training_images, classify)
+
+        class_pred = clf.predict(flat_unknown_images)
+
+        for j in range(len(classified)):
+            classified[j] += class_pred[j]
+
+        '''
+        Testing how well the data was fit
+        y_pred = clf.predict(X_test)
+        y_f1 = f1_score(y_test, y_pred, average=None)
+        y_precision = precision_score(y_test, y_pred, average=None)
+        y_recall = recall_score(y_test, y_pred, average=None)
+        y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+        '''
+
+    for i in range(len(classified)):
+        classified[i] = float("{0:.2f}".format(classified[i]/50))
 
     print( "K-Nearest Neighbor Classifier Fitted" )
 
-    return y_scores
+    return classified
 
 def svm_classifier( training_images, classify, unknown_images ):
     print( "SVM Classifier" )
@@ -155,23 +212,45 @@ def svm_classifier( training_images, classify, unknown_images ):
     for img in training_images:
         flat_training_images.append(img.flatten())
 
-    '''
-    Data splitting with a known dataset, held-out
-    X_train, X_test, y_train, y_test = train_test_split(
-        flat_training_images, classify, test_size=0.25)
-    '''
+    flat_unknown_images = []
+    for img in unknown_images:
+        flat_unknown_images.append(img.flatten())
 
-    clf = SVC(kernel='linear', class_weight='balanced')
-    clf = clf.fit(X_train, y_train)
+    classified = [0]*len(unknown_images)
 
-    '''
-    Testing how well the known data set was Fitted
-    y_pred = clf.predict(X_test)
-    y_f1 = f1_score(y_test, y_pred, average=None)
-    y_precision = precision_score(y_test, y_pred, average=None)
-    y_recall = recall_score(y_test, y_pred, average=None)
-    y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
-    '''
+    start_time = time.time()
+
+    for i in range(15):
+
+        '''
+        Data splitting with a known dataset, held-out
+        X_train, X_test, y_train, y_test = train_test_split(
+            flat_training_images, classify, test_size=0.25)
+        '''
+
+        clf = SVC(kernel='linear', class_weight='balanced', tol=1e3*(i+1))
+        clf = clf.fit(flat_training_images, classify)
+
+        class_pred = clf.predict(flat_unknown_images)
+
+        for j in range(len(classified)):
+            classified[j] += class_pred[j]
+
+        '''
+        Testing how well the known data set was Fitted
+        y_pred = clf.predict(X_test)
+        y_f1 = f1_score(y_test, y_pred, average=None)
+        y_precision = precision_score(y_test, y_pred, average=None)
+        y_recall = recall_score(y_test, y_pred, average=None)
+        y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+        '''
+
+    finish_time = time.time()
+    for i in range(len(classified)):
+        classified[i] = float("{0:.2f}".format(classified[i]/15))
+    print( classified )
+
+    print( "It took %f seconds" % (finish_time-start_time))
 
     print( "SVM Classifier Fitted" )
 
@@ -207,7 +286,7 @@ else:
         elif int(sys.argv[4]) == 2:
             classified_images = pca_svm_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 3:
-            classified_images = k_neareast_classifier(training_images, classify, unknown_images)
+            classified_images = k_nearest_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 4:
             classified_images = svm_classifier(training_images, classify, unknown_images)
         '''
