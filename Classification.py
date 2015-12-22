@@ -54,7 +54,7 @@ def load_unknown_set( file ):
     return images
 
 def hog_svm_classifier( training_images, classify, unknown_images ):
-    #print( "Histogram of Oriented Gradients Classifier" )
+    print( "Histogram of Oriented Gradients Classifier" )
 
     hog_set = []
 
@@ -63,36 +63,41 @@ def hog_svm_classifier( training_images, classify, unknown_images ):
                     cells_per_block=(1, 1))
         hog_set.append(fd)
 
-    # Testing with known data set
+    '''
+    Data splitting with a known dataset, held-out
     X_train, X_test, y_train, y_test = train_test_split(
-        hog_set, classify, test_size=0.25)
+        flat_training_images, classify, test_size=0.25)
+    '''
 
     clf = SVC(kernel='linear', class_weight='balanced')
     clf = clf.fit(X_train, y_train)
 
-    # Testing how well the data was fit
+    '''
+    Testing how well the data was fit
     y_pred = clf.predict(X_test)
     y_pred = clf.predict(X_test)
     y_f1 = f1_score(y_test, y_pred, average=None)
     y_precision = precision_score(y_test, y_pred, average=None)
     y_recall = recall_score(y_test, y_pred, average=None)
-
     y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+    '''
 
-    #print( "Histogram of Oriented Gradients Classifier Fitted" )
+    print( "Histogram of Oriented Gradients Classifier Fitted" )
 
     return y_scores
 
 def pca_svm_classifier( training_images, classify, unknown_images ):
-    #print( "Principal Component Analysis Classifier" )
+    print( "Principal Component Analysis Classifier" )
 
     flat_training_images = []
     for img in training_images:
         flat_training_images.append(img.flatten())
 
-    # Testing with known data set
+    '''
+    Data splitting with a known dataset, held-out
     X_train, X_test, y_train, y_test = train_test_split(
         flat_training_images, classify, test_size=0.25)
+    '''
 
     pca = RandomizedPCA(n_components=len(X_train), whiten=True).fit(X_train)
     eigen_images = pca.components_.reshape((len(X_train), 250, 250))
@@ -102,68 +107,75 @@ def pca_svm_classifier( training_images, classify, unknown_images ):
     clf = SVC(kernel='linear', class_weight='balanced')
     clf = clf.fit(X_train_pca, y_train)
 
-    # Testing how well the data was fit
+    '''
+    Testing how well the data was fit
     y_pred = clf.predict(X_test_pca)
     y_f1 = f1_score(y_test, y_pred, average=None)
     y_precision = precision_score(y_test, y_pred, average=None)
     y_recall = recall_score(y_test, y_pred, average=None)
-
     y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+    '''
 
-    #print( "Principal Component Analysis Classifier Fitted" )
+    print( "Principal Component Analysis Classifier Fitted" )
 
     return y_scores
 
-def k_near_svm_classifier( training_images, classify, unknown_images ):
-    #print( "K-Nearest Neighbor Classifier" )
+def k_nearest_classifier( training_images, classify, unknown_images ):
+    print( "K-Nearest Neighbor Classifier" )
 
     flat_training_images = []
     for img in training_images:
         flat_training_images.append(img.flatten())
 
-    # Testing with known data set
+    '''
+    Data splitting with a known dataset, held-out
     X_train, X_test, y_train, y_test = train_test_split(
         flat_training_images, classify, test_size=0.25)
+    '''
 
     clf = KNeighborsClassifier(10).fit(X_train, y_train)
 
-    # Testing how well the data was fit
+    '''
+    Testing how well the data was fit
     y_pred = clf.predict(X_test)
     y_f1 = f1_score(y_test, y_pred, average=None)
     y_precision = precision_score(y_test, y_pred, average=None)
     y_recall = recall_score(y_test, y_pred, average=None)
-
     y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+    '''
 
-    #print( "K-Nearest Neighbor Classifier Fitted" )
+    print( "K-Nearest Neighbor Classifier Fitted" )
 
     return y_scores
 
 def svm_classifier( training_images, classify, unknown_images ):
-    #print( "SVM Classifier" )
+    print( "SVM Classifier" )
 
     flat_training_images = []
     for img in training_images:
         flat_training_images.append(img.flatten())
 
-    # Testing with the known dataset
+    '''
+    Data splitting with a known dataset, held-out
     X_train, X_test, y_train, y_test = train_test_split(
         flat_training_images, classify, test_size=0.25)
+    '''
 
     clf = SVC(kernel='linear', class_weight='balanced')
     clf = clf.fit(X_train, y_train)
 
-    # Testing how well the known data set was Fitted
+    '''
+    Testing how well the known data set was Fitted
     y_pred = clf.predict(X_test)
     y_f1 = f1_score(y_test, y_pred, average=None)
     y_precision = precision_score(y_test, y_pred, average=None)
     y_recall = recall_score(y_test, y_pred, average=None)
-
     y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
+    '''
 
-    #print( "SVM Classifier Fitted" )
+    print( "SVM Classifier Fitted" )
 
-    return y_scores
+    return
 
 def save_classified_set( classified_images, classified_set ):
     return 0
@@ -190,17 +202,19 @@ else:
     if int(sys.argv[4]) > 4 or int(sys.argv[4]) < 1:
         print( "Algorithm identifier must be between 1-4" )
     else:
-        '''
         if int(sys.argv[4]) == 1:
             classified_images = hog_svm_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 2:
             classified_images = pca_svm_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 3:
-            classified_images = k_near_svm_classifier(training_images, classify, unknown_images)
+            classified_images = k_neareast_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 4:
             classified_images = svm_classifier(training_images, classify, unknown_images)
         '''
-
+        This was used to test which method had the best, recall, precision and
+        F1 scores and what the deviation was over 100 iterations
+        Time measurements were also taken since those are important for determining
+        how well an algorithm will work in a production environment
         for i in [1,2,3,4]:
             y_pred_array = [[],[],[],[],[],[]]
             start_time = time.time()
@@ -210,7 +224,7 @@ else:
                 elif i == 2:
                     y_pred = pca_svm_classifier(training_images, classify, unknown_images)
                 elif i == 3:
-                    y_pred = k_near_svm_classifier(training_images, classify, unknown_images)
+                    y_pred = k_nearest_classifier(training_images, classify, unknown_images)
                 elif i == 4:
                     y_pred = svm_classifier(training_images, classify, unknown_images)
 
@@ -243,5 +257,6 @@ else:
             print( "Mean 0\t\t%f\t%f\t%f" % (mean[3], mean[4], mean[5]))
             print( "St.Dev 0\t%f\t%f\t%f" % (std[0], std[1], std[2]))
             print( "St.Dev 0\t%f\t%f\t%f" % (std[3], std[4], std[5]))
+            '''
 
         save_classified_set( classified_images, classified_set )
