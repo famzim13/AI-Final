@@ -27,31 +27,28 @@ def load_training_set( file ):
     img_size = [250, 250]
     img_classify = 0
 
-    try:
-        for line in file:
-            img_url, img_classify = line_split( line )
-            classify = np.hstack((classify, img_classify))
-            img = imread(img_url, as_grey=True)
-            img = resize(img, img_size)
-            images.append(img)
-    finally:
-        file.close()
+    for line in file:
+        img_url, img_classify = line_split( line )
+        classify = np.hstack((classify, img_classify))
+        img = imread(img_url, as_grey=True)
+        img = resize(img, img_size)
+        images.append(img)
 
     return images, classify
 
 def load_unknown_set( file ):
     images = []
+    img_urls = []
     img_size = [250, 250]
 
-    try:
-        for line in file:
-            img = imread(line.rstrip('\n'), as_grey=True)
-            img = resize(img, img_size)
-            images.append(img)
-    finally:
-        file.close()
+    for line in file:
+        img_url = line.rstrip('\n')
+        img_urls.append(img_url)
+        img = imread(img_url, as_grey=True)
+        img = resize(img, img_size)
+        images.append(img)
 
-    return images
+    return images, img_urls
 
 def hog_svm_classifier( training_images, classify, unknown_images ):
     print( "Histogram of Oriented Gradients Classifier" )
@@ -59,9 +56,7 @@ def hog_svm_classifier( training_images, classify, unknown_images ):
     clf = SVC(kernel='linear', class_weight='balanced')
     classified = [0]*len(unknown_images)
 
-    start_time = time.time()
-
-    for i in range(15):
+    for i in range(25):
         training_hog_set = []
         for img in training_images:
             fd = hog(img, orientations=8, pixels_per_cell=(16+i, 16+i),
@@ -97,10 +92,8 @@ def hog_svm_classifier( training_images, classify, unknown_images ):
         y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
         '''
 
-    finish_time = time.time()
-
     for i in range(len(classified)):
-        classified[i] = float("{0:.2f}".format(classified[i]/15))
+        classified[i] = float("{0:.2f}".format(classified[i]/25))
 
     print( "Histogram of Oriented Gradients Classifier Fitted" )
 
@@ -119,8 +112,6 @@ def pca_svm_classifier( training_images, classify, unknown_images ):
 
     classified = [0]*len(unknown_images)
 
-    start_time = time.time()
-
     for i in range(5):
 
         '''
@@ -129,15 +120,15 @@ def pca_svm_classifier( training_images, classify, unknown_images ):
             flat_training_images, classify, test_size=0.25)
         '''
 
-        pca = RandomizedPCA(n_components=len(flat_training_images)//(i+1), whiten=True).fit(flat_training_images)
-        eigen_images = pca.components_.reshape((len(X_train)//(i+1), 250, 250))
-        X_train_pca = pca.transform(X_train)
-        X_test_pca = pca.transform(X_test)
+        pca = RandomizedPCA(n_components=len(flat_training_images)//(10*(i+1))+1, whiten=True).fit(flat_training_images)
+        eigen_images = pca.components_.reshape((len(flat_training_images)//(10*(i+1))+1, 250, 250))
+        X_train_pca = pca.transform(flat_training_images)
+        X_test_pca = pca.transform(flat_unknown_images)
 
         clf = SVC(kernel='linear', class_weight='balanced')
-        clf = clf.fit(X_train_pca, y_train)
+        clf = clf.fit(X_train_pca, classify)
 
-        class_pred = clf.predict(flat_unknown_images)
+        class_pred = clf.predict(X_test_pca)
 
         for j in range(len(classified)):
             classified[j] += class_pred[j]
@@ -150,9 +141,6 @@ def pca_svm_classifier( training_images, classify, unknown_images ):
         y_recall = recall_score(y_test, y_pred, average=None)
         y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
         '''
-
-    finish_time = time.time()
-    print( "It took %f seconds" % (finish_time-start_time))
 
     for i in range(len(classified)):
         classified[i] = float("{0:.2f}".format(classified[i]/5))
@@ -173,8 +161,9 @@ def k_nearest_classifier( training_images, classify, unknown_images ):
         flat_unknown_images.append(img.flatten())
 
     classified = [0]*len(unknown_images)
+    loops = len(training_images) // 7.5
 
-    for i in range(50):
+    for i in range(loops):
 
         '''
         Data splitting with a known dataset, held-out
@@ -199,7 +188,7 @@ def k_nearest_classifier( training_images, classify, unknown_images ):
         '''
 
     for i in range(len(classified)):
-        classified[i] = float("{0:.2f}".format(classified[i]/50))
+        classified[i] = float("{0:.2f}".format(classified[i]/loops))
 
     print( "K-Nearest Neighbor Classifier Fitted" )
 
@@ -218,9 +207,7 @@ def svm_classifier( training_images, classify, unknown_images ):
 
     classified = [0]*len(unknown_images)
 
-    start_time = time.time()
-
-    for i in range(15):
+    for i in range(100):
 
         '''
         Data splitting with a known dataset, held-out
@@ -245,19 +232,18 @@ def svm_classifier( training_images, classify, unknown_images ):
         y_scores = [y_precision[0], y_recall[0], y_f1[0], y_precision[1], y_recall[1], y_f1[1]]
         '''
 
-    finish_time = time.time()
     for i in range(len(classified)):
-        classified[i] = float("{0:.2f}".format(classified[i]/15))
+        classified[i] = float("{0:.2f}".format(classified[i]/100))
     print( classified )
-
-    print( "It took %f seconds" % (finish_time-start_time))
 
     print( "SVM Classifier Fitted" )
 
-    return
+    return classified
 
-def save_classified_set( classified_images, classified_set ):
-    return 0
+def save_classified_set( unknown_urls, classified, file ):
+    for i in range(len(unknown_urls)):
+        write_line = str(unknown_urls[i]) + ' ' + str(classified[i]) + "\n"
+        file.write(write_line)
 
 
 if len(sys.argv) != 5:
@@ -268,27 +254,27 @@ else:
     # Open the entered files
     trainer_set = open(sys.argv[1], 'r')
     unknown_set = open(sys.argv[2], 'r')
-    classified_set = open(sys.argv[3], 'w')
+    classified_set = open(sys.argv[3], 'r+')
 
     # Load the training data
     training_images, classify = load_training_set( trainer_set )
     print( "Training Images Loaded" )
 
     # Load the unknown data
-    unknown_images = load_unknown_set( unknown_set )
+    unknown_images, unknown_urls = load_unknown_set( unknown_set )
     print( "Unknown Images Loaded" )
 
     if int(sys.argv[4]) > 4 or int(sys.argv[4]) < 1:
         print( "Algorithm identifier must be between 1-4" )
     else:
         if int(sys.argv[4]) == 1:
-            classified_images = hog_svm_classifier(training_images, classify, unknown_images)
+            classified = hog_svm_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 2:
-            classified_images = pca_svm_classifier(training_images, classify, unknown_images)
+            classified = pca_svm_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 3:
-            classified_images = k_nearest_classifier(training_images, classify, unknown_images)
+            classified = k_nearest_classifier(training_images, classify, unknown_images)
         elif int(sys.argv[4]) == 4:
-            classified_images = svm_classifier(training_images, classify, unknown_images)
+            classified = svm_classifier(training_images, classify, unknown_images)
         '''
         This was used to test which method had the best, recall, precision and
         F1 scores and what the deviation was over 100 iterations
@@ -338,4 +324,8 @@ else:
             print( "St.Dev 0\t%f\t%f\t%f" % (std[3], std[4], std[5]))
             '''
 
-        save_classified_set( classified_images, classified_set )
+        save_classified_set( unknown_urls, classified, classified_set )
+
+        trainer_set.close()
+        unknown_set.close()
+        classified_set.close()
